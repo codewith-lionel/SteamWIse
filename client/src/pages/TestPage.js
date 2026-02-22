@@ -43,7 +43,7 @@ export default function TestPage() {
   };
 
   const handleSubmit = async () => {
-    const unanswered = questions.filter((_, i) => !answers[i]);
+    const unanswered = questions.filter((_, i) => answers[i] === undefined);
     if (unanswered.length > 0) {
       return setError(`Please answer all questions. ${unanswered.length} question(s) remaining.`);
     }

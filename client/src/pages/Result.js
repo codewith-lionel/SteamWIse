@@ -62,7 +62,7 @@ export default function Result() {
     return (
       <div className="gradient-bg" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
         <span className="loading-spinner" style={{ width: 48, height: 48, borderWidth: 5 }} />
-        <p style={{ color: '#fff', fontSize: '1.1rem' }}>Analysing your results with AI...</p>
+        <p style={{ color: '#fff', fontSize: '1.1rem' }}>Analyzing your results with AI...</p>
       </div>
     );
   }
