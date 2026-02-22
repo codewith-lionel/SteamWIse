@@ -2,20 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
-const STREAM_LABELS = {
-  computerScience: 'Computer Science',
-  commerce: 'Commerce',
-  biology: 'Biology',
-  maths: 'Mathematics',
-  arts: 'Arts',
-};
-
 export default function TestPage() {
-  const { stream } = useParams();
+  const { stream } = useParams(); // undefined when route is /test (unified)
   const navigate = useNavigate();
 
   const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState({}); // { questionIndex: optionIndex (0-3) }
+  const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -25,7 +17,9 @@ export default function TestPage() {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.get(`/test/generate/${stream}`);
+      // Use unified endpoint when no stream param
+      const endpoint = stream ? `/test/generate/${stream}` : '/test/generate';
+      const { data } = await api.get(endpoint);
       setQuestions(data.questions || data);
       setAnswers({});
       setCurrentIndex(0);
@@ -52,7 +46,8 @@ export default function TestPage() {
     try {
       const userAnswers = questions.map((_, i) => answers[i]);
       const correctAnswers = questions.map((q) => q.correctAnswer);
-      await api.post('/test/submit', { stream, userAnswers, correctAnswers });
+      const streamKey = stream || 'unified';
+      await api.post('/test/submit', { stream: streamKey, userAnswers, correctAnswers });
       navigate('/result');
     } catch (err) {
       setError(err.response?.data?.message || 'Submission failed. Please try again.');
@@ -67,20 +62,24 @@ export default function TestPage() {
 
   if (loading) {
     return (
-      <div className="gradient-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
-        <span className="loading-spinner" style={{ width: 48, height: 48, borderWidth: 5 }} />
-        <p style={{ color: '#fff', fontSize: '1.1rem' }}>Generating questions for {STREAM_LABELS[stream] || stream}...</p>
+      <div style={{ background: '#f5f7ff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ width: 56, height: 56, border: '4px solid #e0e7ff', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <p style={{ color: '#4338ca', fontSize: '1.05rem', fontWeight: '600' }}>
+          {stream ? `Generating ${stream} questions…` : 'Generating your personalised aptitude test…'}
+        </p>
+        <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>This may take a few seconds</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   if (error && questions.length === 0) {
     return (
-      <div className="gradient-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: '#f5f7ff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
         <div className="card" style={{ maxWidth: '480px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
           <p className="error-message">{error}</p>
-          <button className="btn-primary mt-2" onClick={fetchQuestions}>Retry</button>
+          <button className="btn-primary mt-2" onClick={fetchQuestions}>Try Again</button>
           <button className="btn-secondary mt-2" style={{ marginLeft: '0.75rem' }} onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
         </div>
       </div>
@@ -88,41 +87,49 @@ export default function TestPage() {
   }
 
   return (
-    <div className="gradient-bg" style={{ minHeight: '100vh', padding: '1.5rem 1rem' }}>
-      <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '700' }}>
-              {STREAM_LABELS[stream] || stream} Test
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
-              Question {currentIndex + 1} of {total}
-            </p>
-          </div>
-          <button onClick={() => navigate('/dashboard')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.875rem' }}>
-            ✕ Exit
-          </button>
+    <div style={{ background: '#f5f7ff', minHeight: '100vh' }}>
+      {/* ── Header ── */}
+      <header className="nav-header">
+        <div>
+          <span className="nav-brand">🧠 Aptitude Test</span>
+          <span style={{ marginLeft: '0.75rem', fontSize: '0.85rem', color: '#6b7280', fontWeight: '500' }}>
+            Question {currentIndex + 1} of {total}
+          </span>
         </div>
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{ background: '#fee2e2', border: 'none', color: '#dc2626', borderRadius: '8px', padding: '0.45rem 1rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}
+        >
+          ✕ Exit
+        </button>
+      </header>
 
-        {/* Progress */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.85)', fontSize: '0.8rem', marginBottom: '0.4rem' }}>
+      <div style={{ maxWidth: '720px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+        {/* ── Progress ── */}
+        <div className="card mb-3" style={{ padding: '1rem 1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6366f1', fontSize: '0.82rem', fontWeight: '600', marginBottom: '0.5rem' }}>
             <span>{answered} of {total} answered</span>
             <span>{progress}% complete</span>
           </div>
-          <div className="progress-bar-wrapper" style={{ background: 'rgba(255,255,255,0.3)' }}>
-            <div className="progress-bar-fill" style={{ width: `${progress}%`, background: '#fff' }} />
+          <div className="progress-bar-wrapper">
+            <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
-        {/* Question Card */}
+        {/* ── Question Card ── */}
         {currentQuestion && (
           <div className="card mb-2">
-            <p style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '0.5rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Question {currentIndex + 1}
-            </p>
-            <p style={{ fontSize: '1.05rem', fontWeight: '600', color: '#222', marginBottom: '1.25rem', lineHeight: '1.6' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#eef2ff', padding: '0.25rem 0.75rem', borderRadius: '999px' }}>
+                Question {currentIndex + 1}
+              </span>
+              {currentQuestion.subject && (
+                <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: '500', background: '#f5f7ff', padding: '0.25rem 0.75rem', borderRadius: '999px' }}>
+                  {currentQuestion.subject}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '1.05rem', fontWeight: '600', color: '#1e1b4b', marginBottom: '1.25rem', lineHeight: '1.7' }}>
               {currentQuestion.question}
             </p>
 
@@ -141,7 +148,7 @@ export default function TestPage() {
                     onChange={() => handleAnswer(currentIndex, optIdx)}
                     style={{ marginTop: '2px' }}
                   />
-                  <span style={{ fontSize: '0.95rem', color: '#333' }}>{option}</span>
+                  <span style={{ fontSize: '0.95rem', color: '#374151' }}>{option}</span>
                 </label>
               ))}
             </div>
@@ -150,7 +157,7 @@ export default function TestPage() {
 
         {error && <div className="error-message mb-2">{error}</div>}
 
-        {/* Navigation */}
+        {/* ── Navigation ── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
           <button
             className="btn-secondary"
@@ -161,16 +168,16 @@ export default function TestPage() {
           </button>
 
           {/* Question dots */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', flex: 1 }}>
+          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', flex: 1 }}>
             {questions.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrentIndex(i)}
                 style={{
                   width: '28px', height: '28px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                  fontSize: '0.7rem', fontWeight: '700',
-                  background: i === currentIndex ? '#fff' : answers[i] ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.25)',
-                  color: i === currentIndex ? '#667eea' : answers[i] ? '#667eea' : '#fff',
+                  fontSize: '0.68rem', fontWeight: '700', transition: 'all 0.15s',
+                  background: i === currentIndex ? '#6366f1' : answers[i] !== undefined ? '#c7d2fe' : '#e0e7ff',
+                  color: i === currentIndex ? '#fff' : answers[i] !== undefined ? '#4338ca' : '#9ca3af',
                 }}
               >
                 {i + 1}
@@ -187,7 +194,7 @@ export default function TestPage() {
             </button>
           ) : (
             <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? <span className="loading-spinner" /> : 'Submit Test'}
+              {submitting ? <span className="loading-spinner light" /> : 'Submit Test ✓'}
             </button>
           )}
         </div>

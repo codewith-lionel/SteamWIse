@@ -25,6 +25,14 @@ const userSchema = new mongoose.Schema({
     english: { type: Number, default: 0 },
     social:  { type: Number, default: 0 },
   },
+  // Subjects the student actually studied (selected during onboarding)
+  subjects: [{ type: String }],
+  // Flexible marks map keyed by subject name (e.g. 'mathematics', 'physics')
+  subjectMarks: {
+    type: Map,
+    of: Number,
+    default: {},
+  },
   preferences: [String],
   createdAt: {
     type: Date,

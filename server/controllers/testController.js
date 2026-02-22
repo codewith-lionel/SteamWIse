@@ -1,6 +1,7 @@
-const { generateQuestions } = require('../utils/gemini');
+const { generateQuestions, generateUnifiedQuestions } = require('../utils/gemini');
 const { calculateScore } = require('../utils/scoring');
 const TestResult = require('../models/TestResult');
+const User = require('../models/User');
 
 // Map route param names to human-readable stream display names
 const STREAM_MAP = {
@@ -11,7 +12,7 @@ const STREAM_MAP = {
   arts:            'Arts',
 };
 
-const VALID_STREAMS = Object.keys(STREAM_MAP);
+const VALID_STREAMS = [...Object.keys(STREAM_MAP), 'unified'];
 
 /**
  * GET /api/test/generate/:stream
@@ -31,6 +32,27 @@ const getQuestions = async (req, res) => {
     const questions = await generateQuestions(streamDisplayName);
 
     res.status(200).json({ stream, questions });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to generate questions', error: error.message });
+  }
+};
+
+/**
+ * GET /api/test/generate  (protected)
+ * Generate a unified aptitude test based on the student's saved subjects.
+ */
+const getUnifiedQuestions = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Fall back to default subjects if none saved yet (camelCase keys matching Preferences.js)
+    const subjects = user.subjects && user.subjects.length > 0
+      ? user.subjects
+      : ['mathematics', 'science', 'english', 'socialStudies'];
+
+    const questions = await generateUnifiedQuestions(subjects);
+    res.status(200).json({ stream: 'unified', questions });
   } catch (error) {
     res.status(500).json({ message: 'Failed to generate questions', error: error.message });
   }
@@ -69,4 +91,4 @@ const submitTest = async (req, res) => {
   }
 };
 
-module.exports = { getQuestions, submitTest };
+module.exports = { getQuestions, getUnifiedQuestions, submitTest };

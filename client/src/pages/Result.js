@@ -14,29 +14,15 @@ import api from '../api/axios';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const STREAM_LABELS = {
-  computerScience: 'Computer Science',
-  commerce: 'Commerce',
-  biology: 'Biology',
-  maths: 'Mathematics',
-  arts: 'Arts',
-};
-
 const STREAM_EMOJIS = {
-  computerScience: '💻',
-  commerce: '📊',
-  biology: '🔬',
-  maths: '📐',
-  arts: '🎨',
+  'Computer Science': '💻',
+  'Commerce': '📊',
+  'Biology': '🔬',
+  'Mathematics': '📐',
+  'Arts': '🎨',
 };
 
-const STREAM_COLORS = {
-  computerScience: '#4f46e5',
-  commerce: '#0891b2',
-  biology: '#16a34a',
-  maths: '#d97706',
-  arts: '#db2777',
-};
+const MEDAL_COLORS = ['#f59e0b', '#94a3b8', '#b45309'];
 
 export default function Result() {
   const navigate = useNavigate();
@@ -45,31 +31,26 @@ export default function Result() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchResult = async () => {
-      try {
-        const { data } = await api.get('/result/final');
-        setResult(data);
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load results.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchResult();
+    api.get('/result/final')
+      .then(({ data }) => setResult(data))
+      .catch((err) => setError(err.response?.data?.message || 'Failed to load results.'))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return (
-      <div className="gradient-bg" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
-        <span className="loading-spinner" style={{ width: 48, height: 48, borderWidth: 5 }} />
-        <p style={{ color: '#fff', fontSize: '1.1rem' }}>Analyzing your results with AI...</p>
+      <div style={{ background: '#f5f7ff', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+        <div style={{ width: 52, height: 52, border: '4px solid #e0e7ff', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <p style={{ color: '#4338ca', fontSize: '1.05rem', fontWeight: '600' }}>Analyzing your results with AI…</p>
+        <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>This may take a few seconds</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="gradient-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: '#f5f7ff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
         <div className="card" style={{ maxWidth: '480px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
           <p className="error-message">{error}</p>
@@ -79,70 +60,74 @@ export default function Result() {
     );
   }
 
-  const { testResult, aiAnalysis } = result || {};
-  const recommendedStream = aiAnalysis?.recommendedStream;
-  const scores = testResult?.scores || {};
-  const explanation = aiAnalysis?.explanation;
+  const { aiAnalysis } = result || {};
+  const recommendedStream = aiAnalysis?.recommendedStream || '';
+  const explanation = aiAnalysis?.explanation || '';
   const confidencePct = Math.round(aiAnalysis?.confidenceLevel || 0);
   const ranking = aiAnalysis?.streamRanking || [];
+  const recEmoji = STREAM_EMOJIS[recommendedStream] || '🎓';
 
-  const recColor = STREAM_COLORS[recommendedStream] || '#667eea';
+  // Build bar chart from stream ranking (if we have scores, show them; otherwise use ranking position)
+  const scores = result?.testResult?.scores || {};
+  const unifiedScore = scores.unified;
 
-  const chartData = {
-    labels: Object.keys(scores).map((k) => STREAM_LABELS[k] || k),
-    datasets: [
-      {
-        label: 'Score',
-        data: Object.values(scores),
-        backgroundColor: Object.keys(scores).map((k) =>
-          k === recommendedStream ? recColor : `${recColor}55`
-        ),
-        borderColor: Object.keys(scores).map((k) =>
-          k === recommendedStream ? recColor : `${recColor}99`
-        ),
-        borderWidth: 2,
-        borderRadius: 6,
-      },
-    ],
-  };
+  const chartData = ranking.length > 0 ? {
+    labels: ranking,
+    datasets: [{
+      label: 'Suitability',
+      data: ranking.map((_, i) => Math.max(10, 100 - i * 18)),
+      backgroundColor: ranking.map((s) => s === recommendedStream ? '#6366f1' : '#c7d2fe'),
+      borderColor: ranking.map((s) => s === recommendedStream ? '#4f46e5' : '#a5b4fc'),
+      borderWidth: 2,
+      borderRadius: 8,
+    }],
+  } : null;
 
   const chartOptions = {
     responsive: true,
-    plugins: {
-      legend: { display: false },
-      title: { display: false },
-    },
+    plugins: { legend: { display: false } },
     scales: {
-      y: {
-        beginAtZero: true,
-        max: 100,
-        grid: { color: '#f0f0f0' },
-        ticks: { font: { size: 12 } },
-      },
-      x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+      y: { beginAtZero: true, max: 110, grid: { color: '#f0f4ff' }, ticks: { display: false } },
+      x: { grid: { display: false }, ticks: { font: { size: 12, weight: '600' }, color: '#4338ca' } },
     },
   };
 
   return (
-    <div className="gradient-bg" style={{ minHeight: '100vh', padding: '1.5rem 1rem' }}>
-      <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+    <div style={{ background: '#f5f7ff', minHeight: '100vh' }}>
+      {/* Nav */}
+      <header className="nav-header">
+        <span className="nav-brand">🎓 StreamWise AI</span>
+        <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.875rem' }} onClick={() => navigate('/dashboard')}>
+          ← Dashboard
+        </button>
+      </header>
 
-        {/* Recommended Stream Card */}
-        <div className="card mb-3" style={{ textAlign: 'center', border: `3px solid ${recColor}`, position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '6px', background: recColor }} />
-          <div style={{ fontSize: '3.5rem', marginTop: '0.5rem' }}>{STREAM_EMOJIS[recommendedStream] || '🎓'}</div>
-          <p style={{ color: '#999', fontSize: '0.85rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.75rem' }}>
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '2rem 1.25rem' }}>
+
+        {/* ── Recommended Stream Hero ── */}
+        <div className="card mb-3" style={{ textAlign: 'center', border: '2px solid #6366f1', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '5px', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }} />
+          <div style={{ marginTop: '0.5rem', fontSize: '4rem' }}>{recEmoji}</div>
+          <p style={{ color: '#9ca3af', fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: '0.75rem' }}>
             AI Recommended Stream
           </p>
-          <h1 style={{ fontSize: '2rem', fontWeight: '800', color: recColor, margin: '0.5rem 0' }}>
-            {STREAM_LABELS[recommendedStream] || recommendedStream}
+          <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#1e1b4b', margin: '0.4rem 0 1rem' }}>
+            {recommendedStream}
           </h1>
 
-          {/* Confidence */}
-          <div style={{ maxWidth: '320px', margin: '0.75rem auto 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#777', marginBottom: '0.3rem' }}>
-              <span>Confidence Level</span>
-              <span style={{ fontWeight: '700', color: '#27ae60' }}>{confidencePct}%</span>
+          {/* Aptitude score badge */}
+          {unifiedScore !== undefined && unifiedScore > 0 && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#eef2ff', borderRadius: '999px', padding: '0.4rem 1rem', marginBottom: '1rem' }}>
+              <span style={{ color: '#6366f1', fontWeight: '700', fontSize: '0.9rem' }}>🎯 Aptitude Score:</span>
+              <span style={{ color: '#1e1b4b', fontWeight: '800', fontSize: '1rem' }}>{unifiedScore}%</span>
+            </div>
+          )}
+
+          {/* Confidence bar */}
+          <div style={{ maxWidth: '340px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.35rem' }}>
+              <span style={{ fontWeight: '600' }}>Confidence Level</span>
+              <span style={{ fontWeight: '800', color: '#6366f1' }}>{confidencePct}%</span>
             </div>
             <div className="confidence-bar-wrapper">
               <div className="confidence-bar-fill" style={{ width: `${confidencePct}%` }} />
@@ -150,58 +135,71 @@ export default function Result() {
           </div>
         </div>
 
-        {/* Bar Chart */}
-        {Object.keys(scores).length > 0 && (
+        {/* ── Stream Ranking Bar Chart ── */}
+        {chartData && (
           <div className="card mb-3">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '1rem', color: '#333' }}>📊 Stream Score Comparison</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#1e1b4b', marginBottom: '1rem' }}>
+              📊 Stream Suitability Ranking
+            </h3>
             <Bar data={chartData} options={chartOptions} />
           </div>
         )}
 
-        {/* AI Explanation */}
+        {/* ── AI Explanation ── */}
         {explanation && (
-          <div className="card mb-3">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.75rem', color: '#333' }}>🤖 AI Analysis</h3>
-            <p style={{ color: '#555', lineHeight: '1.8', fontSize: '0.95rem' }}>{explanation}</p>
+          <div className="card mb-3" style={{ border: '1px solid #e0e7ff' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#1e1b4b', marginBottom: '0.75rem' }}>
+              🤖 AI Analysis
+            </h3>
+            <p style={{ color: '#374151', lineHeight: '1.85', fontSize: '0.95rem' }}>{explanation}</p>
           </div>
         )}
 
-        {/* Stream Ranking */}
+        {/* ── Stream Ranking List ── */}
         {ranking.length > 0 && (
           <div className="card mb-3">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '1rem', color: '#333' }}>�� Stream Rankings</h3>
-            {ranking.map((item, index) => {
-              const streamKey = typeof item === 'string' ? item : item.stream;
-              const streamScore = typeof item === 'object' ? item.score : scores[streamKey];
-              const color = STREAM_COLORS[streamKey] || '#667eea';
-              return (
-                <div key={streamKey} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.6rem 0', borderBottom: index < ranking.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
-                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: index === 0 ? '#f59e0b' : index === 1 ? '#94a3b8' : index === 2 ? '#b45309' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
-                    {index + 1}
+            <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#1e1b4b', marginBottom: '1rem' }}>
+              🏆 Stream Rankings
+            </h3>
+            {ranking.map((streamName, index) => (
+              <div
+                key={streamName}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.65rem 0', borderBottom: index < ranking.length - 1 ? '1px solid #f0f4ff' : 'none' }}
+              >
+                <span style={{
+                  width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
+                  background: MEDAL_COLORS[index] || '#e0e7ff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.75rem', fontWeight: '800', color: index < 3 ? '#fff' : '#6b7280',
+                }}>
+                  {index + 1}
+                </span>
+                <span style={{ fontSize: '1.25rem' }}>{STREAM_EMOJIS[streamName] || '📚'}</span>
+                <span style={{ flex: 1, fontWeight: index === 0 ? '800' : '600', color: '#1e1b4b', fontSize: '0.95rem' }}>
+                  {streamName}
+                </span>
+                {index === 0 && (
+                  <span style={{ background: '#eef2ff', color: '#6366f1', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700', padding: '0.2rem 0.65rem' }}>
+                    Best Fit
                   </span>
-                  <span style={{ fontSize: '1.2rem' }}>{STREAM_EMOJIS[streamKey] || '📚'}</span>
-                  <span style={{ flex: 1, fontWeight: '600', color: '#333' }}>{STREAM_LABELS[streamKey] || streamKey}</span>
-                  {streamScore !== undefined && (
-                    <span style={{ fontWeight: '700', color, fontSize: '0.9rem' }}>{Math.round(streamScore)}%</span>
-                  )}
-                </div>
-              );
-            })}
+                )}
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Disclaimer */}
-        <div style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.5rem', color: 'rgba(255,255,255,0.9)', fontSize: '0.82rem', textAlign: 'center' }}>
-          ℹ️ <strong>Disclaimer:</strong> This AI-based recommendation is for guidance only. Please consult with academic counsellors before making final decisions.
+        {/* ── Disclaimer ── */}
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '1.5rem', color: '#92400e', fontSize: '0.82rem', textAlign: 'center' }}>
+          ℹ️ <strong>Disclaimer:</strong> This AI-based recommendation is for guidance only. Please consult an academic counsellor before making final decisions.
         </div>
 
-        {/* Actions */}
-        <div style={{ textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="btn-primary" style={{ background: '#fff', color: '#667eea' }} onClick={() => navigate('/dashboard')}>
-            🔄 Take Another Test
+        {/* ── Actions ── */}
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button className="btn-primary" onClick={() => navigate('/test')}>
+            🔄 Retake Test
           </button>
-          <button className="btn-secondary" style={{ borderColor: '#fff', color: '#fff' }} onClick={() => navigate('/preferences')}>
-            ✏️ Update Preferences
+          <button className="btn-secondary" onClick={() => navigate('/preferences')}>
+            ✏️ Update Subjects & Marks
           </button>
         </div>
       </div>

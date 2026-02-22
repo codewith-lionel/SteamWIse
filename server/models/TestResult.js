@@ -13,6 +13,7 @@ const testResultSchema = new mongoose.Schema({
     biology:         { type: Number, default: 0 },
     maths:           { type: Number, default: 0 },
     arts:            { type: Number, default: 0 },
+    unified:         { type: Number, default: 0 },
   },
   recommendedStream: String,
   confidenceLevel:   Number,

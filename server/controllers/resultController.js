@@ -19,10 +19,12 @@ const getFinalResult = async (req, res) => {
     const user = await User.findById(req.user.id).select('-password');
 
     const studentData = {
-      name:        user.name,
-      marks:       user.marks,
-      preferences: user.preferences,
-      scores:      testResult.scores,
+      name:         user.name,
+      marks:        user.marks,
+      preferences:  user.preferences,
+      scores:       testResult.scores,
+      subjects:     user.subjects || [],
+      subjectMarks: user.subjectMarks || new Map(),
     };
 
     const aiAnalysis = await analyzeFinalResult(studentData);

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { getQuestions, submitTest } = require('../controllers/testController');
+const { getQuestions, getUnifiedQuestions, submitTest } = require('../controllers/testController');
 const { protect } = require('../middleware/auth');
 
 // Rate limiter: max 30 test requests per 15 minutes per IP
@@ -11,6 +11,9 @@ const testLimiter = rateLimit({
   message: { message: 'Too many requests, please try again later.' },
 });
 
+// Unified aptitude test (uses the student's saved subjects)
+router.get('/generate', testLimiter, protect, getUnifiedQuestions);
+// Per-stream test (kept for backward compatibility)
 router.get('/generate/:stream', testLimiter, getQuestions);
 router.post('/submit', testLimiter, protect, submitTest);
 

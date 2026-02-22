@@ -32,7 +32,7 @@ export default function Register() {
         password: form.password,
       });
       login(data.token, data.user);
-      navigate('/dashboard');
+      navigate('/preferences');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -41,12 +41,13 @@ export default function Register() {
   };
 
   return (
-    <div className="gradient-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
+    <div className="auth-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
       <div className="card" style={{ width: '100%', maxWidth: '440px' }}>
+        <div className="auth-card-accent" />
         <div className="text-center mb-3">
           <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🎓</div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#333' }}>StreamWise AI</h1>
-          <p style={{ color: '#777', marginTop: '0.25rem' }}>Create your account</p>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1e1b4b' }}>StreamWise AI</h1>
+          <p style={{ color: '#6366f1', marginTop: '0.25rem', fontSize: '0.9rem' }}>Create your account</p>
         </div>
 
         {error && <div className="error-message">{error}</div>}
@@ -109,13 +110,13 @@ export default function Register() {
           </div>
 
           <button type="submit" className="btn-primary w-full mt-2" disabled={loading}>
-            {loading ? <span className="loading-spinner" /> : 'Create Account'}
+            {loading ? <span className="loading-spinner light" /> : 'Create Account'}
           </button>
         </form>
 
-        <p className="text-center mt-3" style={{ color: '#777', fontSize: '0.9rem' }}>
+        <p className="text-center mt-3" style={{ color: '#6b7280', fontSize: '0.9rem' }}>
           Already have an account?{' '}
-          <Link to="/login" style={{ color: '#667eea', fontWeight: '600', textDecoration: 'none' }}>
+          <Link to="/login" style={{ color: '#6366f1', fontWeight: '600', textDecoration: 'none' }}>
             Sign in
           </Link>
         </p>

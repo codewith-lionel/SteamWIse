@@ -66,15 +66,23 @@ const login = async (req, res) => {
 
 /**
  * PUT /api/auth/marks  (protected)
- * Update the authenticated user's academic marks.
+ * Update the authenticated user's academic marks, subjects, and preferences.
  */
 const updateMarks = async (req, res) => {
   try {
-    const { maths, science, english, social } = req.body;
+    const { maths, science, english, social, subjects, subjectMarks, preferences } = req.body;
+
+    const updateData = {
+      marks: { maths: maths || 0, science: science || 0, english: english || 0, social: social || 0 },
+    };
+
+    if (subjects) updateData.subjects = subjects;
+    if (subjectMarks) updateData.subjectMarks = subjectMarks;
+    if (preferences) updateData.preferences = preferences;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { marks: { maths, science, english, social } },
+      updateData,
       { new: true, runValidators: true }
     ).select('-password');
 

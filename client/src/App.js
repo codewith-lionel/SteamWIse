@@ -22,6 +22,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       <Route path="/preferences" element={<PrivateRoute><Preferences /></PrivateRoute>} />
+      <Route path="/test" element={<PrivateRoute><TestPage /></PrivateRoute>} />
       <Route path="/test/:stream" element={<PrivateRoute><TestPage /></PrivateRoute>} />
       <Route path="/result" element={<PrivateRoute><Result /></PrivateRoute>} />
     </Routes>
