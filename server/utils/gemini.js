@@ -1,7 +1,56 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+if (!process.env.GEMINI_API_KEY) {
+  console.warn('WARNING: GEMINI_API_KEY is not set. AI features will not work.');
+}
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+/**
+ * Extract a JSON value (array or object) from a string that may contain
+ * markdown fences or other surrounding text returned by the model.
+ * @param {string} text - Raw text from the model response.
+ * @returns {any} Parsed JSON value.
+ */
+const extractJSON = (text) => {
+  // Remove markdown code fences (```json ... ``` or ``` ... ```)
+  const withoutFences = text.replace(/```(?:json)?\s*|\s*```/g, '').trim();
+  // Try direct parse first
+  try {
+    return JSON.parse(withoutFences);
+  } catch (_) {
+    // Fall back: find the first JSON array or object in the text and parse from there
+    const arrayStart = withoutFences.indexOf('[');
+    const objectStart = withoutFences.indexOf('{');
+    const start =
+      arrayStart === -1 ? objectStart :
+      objectStart === -1 ? arrayStart :
+      Math.min(arrayStart, objectStart);
+    if (start === -1) throw new SyntaxError('No JSON found in model response');
+    return JSON.parse(withoutFences.slice(start));
+  }
+};
+
+// Map camelCase subject keys (from Preferences.js) to readable display names for AI prompts
+const SUBJECT_DISPLAY_NAMES = {
+  mathematics: 'Mathematics',
+  science: 'Science',
+  physics: 'Physics',
+  chemistry: 'Chemistry',
+  biology: 'Biology',
+  english: 'English',
+  hindi: 'Hindi',
+  socialStudies: 'Social Studies',
+  history: 'History',
+  geography: 'Geography',
+  economics: 'Economics',
+  computerScience: 'Computer Science',
+  accountancy: 'Accountancy',
+  arts: 'Arts & Drawing',
+  physicalEducation: 'Physical Education',
+  music: 'Music',
+};
 
 /**
  * Generate 10 MCQ aptitude questions for a given stream using Gemini AI.
@@ -30,10 +79,7 @@ Example format:
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-
-    // Strip any accidental markdown code fences
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const questions = JSON.parse(cleaned);
+    const questions = extractJSON(text);
     return questions;
   } catch (error) {
     throw new Error(`Failed to generate questions: ${error.message}`);
@@ -80,33 +126,11 @@ Return ONLY a valid JSON object (no markdown, no extra text) with:
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const analysis = JSON.parse(cleaned);
+    const analysis = extractJSON(text);
     return analysis;
   } catch (error) {
     throw new Error(`Failed to analyze results: ${error.message}`);
   }
-};
-
-// Map camelCase subject keys (from Preferences.js) to readable display names for AI prompts
-const SUBJECT_DISPLAY_NAMES = {
-  mathematics: 'Mathematics',
-  science: 'Science',
-  physics: 'Physics',
-  chemistry: 'Chemistry',
-  biology: 'Biology',
-  english: 'English',
-  hindi: 'Hindi',
-  socialStudies: 'Social Studies',
-  history: 'History',
-  geography: 'Geography',
-  economics: 'Economics',
-  computerScience: 'Computer Science',
-  accountancy: 'Accountancy',
-  arts: 'Arts & Drawing',
-  physicalEducation: 'Physical Education',
-  music: 'Music',
 };
 
 /**
@@ -143,8 +167,7 @@ Example format:
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const questions = JSON.parse(cleaned);
+    const questions = extractJSON(text);
     return questions;
   } catch (error) {
     throw new Error(`Failed to generate unified questions: ${error.message}`);
