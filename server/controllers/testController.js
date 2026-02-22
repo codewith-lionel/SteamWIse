@@ -43,6 +43,7 @@ const getQuestions = async (req, res) => {
  */
 const getUnifiedQuestions = async (req, res) => {
   try {
+    console.log('[getUnifiedQuestions] User ID:', req.user.id);
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -51,9 +52,12 @@ const getUnifiedQuestions = async (req, res) => {
       ? user.subjects
       : ['mathematics', 'science', 'english', 'socialStudies'];
 
+    console.log('[getUnifiedQuestions] Subjects:', subjects);
     const questions = await generateUnifiedQuestions(subjects);
+    console.log('[getUnifiedQuestions] Generated', questions.length, 'questions');
     res.status(200).json({ stream: 'unified', questions });
   } catch (error) {
+    console.error('[getUnifiedQuestions] Error:', error);
     res.status(500).json({ message: 'Failed to generate questions', error: error.message });
   }
 };
