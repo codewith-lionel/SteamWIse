@@ -12,12 +12,8 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// CORS configuration - restrict origin via environment variable in production
-app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+// Enable CORS for all origins
+app.use(cors());
 
 // JSON body parser
 app.use(express.json());
