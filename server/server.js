@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const connectDB = require('./config/db');
 
 const authRoutes = require('./routes/auth');
@@ -11,13 +10,6 @@ const app = express();
 
 // Connect to MongoDB
 connectDB();
-
-// CORS configuration - restrict origin via environment variable in production
-app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
 
 // JSON body parser
 app.use(express.json());
