@@ -1,11 +1,12 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require("groq-sdk");
 
-if (!process.env.GEMINI_API_KEY) {
-  console.warn('WARNING: GEMINI_API_KEY is not set. AI features will not work.');
+if (!process.env.GROQ_API_KEY) {
+  console.warn("WARNING: GROQ_API_KEY is not set. AI features will not work.");
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || "",
+});
 
 /**
  * Extract a JSON value (array or object) from a string that may contain
@@ -15,45 +16,47 @@ const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
  */
 const extractJSON = (text) => {
   // Remove markdown code fences (```json ... ``` or ``` ... ```)
-  const withoutFences = text.replace(/```(?:json)?\s*|\s*```/g, '').trim();
+  const withoutFences = text.replace(/```(?:json)?\s*|\s*```/g, "").trim();
   // Try direct parse first
   try {
     return JSON.parse(withoutFences);
   } catch (_) {
     // Fall back: find the first JSON array or object in the text and parse from there
-    const arrayStart = withoutFences.indexOf('[');
-    const objectStart = withoutFences.indexOf('{');
+    const arrayStart = withoutFences.indexOf("[");
+    const objectStart = withoutFences.indexOf("{");
     const start =
-      arrayStart === -1 ? objectStart :
-      objectStart === -1 ? arrayStart :
-      Math.min(arrayStart, objectStart);
-    if (start === -1) throw new SyntaxError('No JSON found in model response');
+      arrayStart === -1
+        ? objectStart
+        : objectStart === -1
+          ? arrayStart
+          : Math.min(arrayStart, objectStart);
+    if (start === -1) throw new SyntaxError("No JSON found in model response");
     return JSON.parse(withoutFences.slice(start));
   }
 };
 
 // Map camelCase subject keys (from Preferences.js) to readable display names for AI prompts
 const SUBJECT_DISPLAY_NAMES = {
-  mathematics: 'Mathematics',
-  science: 'Science',
-  physics: 'Physics',
-  chemistry: 'Chemistry',
-  biology: 'Biology',
-  english: 'English',
-  hindi: 'Hindi',
-  socialStudies: 'Social Studies',
-  history: 'History',
-  geography: 'Geography',
-  economics: 'Economics',
-  computerScience: 'Computer Science',
-  accountancy: 'Accountancy',
-  arts: 'Arts & Drawing',
-  physicalEducation: 'Physical Education',
-  music: 'Music',
+  mathematics: "Mathematics",
+  science: "Science",
+  physics: "Physics",
+  chemistry: "Chemistry",
+  biology: "Biology",
+  english: "English",
+  hindi: "Hindi",
+  socialStudies: "Social Studies",
+  history: "History",
+  geography: "Geography",
+  economics: "Economics",
+  computerScience: "Computer Science",
+  accountancy: "Accountancy",
+  arts: "Arts & Drawing",
+  physicalEducation: "Physical Education",
+  music: "Music",
 };
 
 /**
- * Generate 10 MCQ aptitude questions for a given stream using Gemini AI.
+ * Generate 10 MCQ aptitude questions for a given stream using Groq AI.
  * @param {string} streamName - Display name of the stream (e.g. 'Computer Science').
  * @returns {Promise<Array>} Array of question objects.
  */
@@ -77,8 +80,13 @@ Example format:
 ]`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 2048,
+    });
+    const text = chatCompletion.choices[0]?.message?.content || "";
     const questions = extractJSON(text);
     return questions;
   } catch (error) {
@@ -92,12 +100,13 @@ Example format:
  * @returns {Promise<{ recommendedStream: string, confidenceLevel: number, explanation: string, streamRanking: string[] }>}
  */
 const analyzeFinalResult = async (studentData) => {
-  const { name, marks, preferences, scores, subjects, subjectMarks } = studentData;
+  const { name, marks, preferences, scores, subjects, subjectMarks } =
+    studentData;
 
   // Build a readable academic marks section for the AI prompt
-  let academicMarksSection = '';
+  let academicMarksSection = "";
   if (subjectMarks && subjectMarks.size > 0) {
-    academicMarksSection = '\nSubject Marks (out of 100):\n';
+    academicMarksSection = "\nSubject Marks (out of 100):\n";
     for (const [subj, mark] of subjectMarks) {
       academicMarksSection += `  - ${SUBJECT_DISPLAY_NAMES[subj] || subj}: ${mark}\n`;
     }
@@ -105,27 +114,42 @@ const analyzeFinalResult = async (studentData) => {
     academicMarksSection = `\nAcademic Marks (out of 100):\n  - Mathematics: ${marks.maths}\n  - Science: ${marks.science}\n  - English: ${marks.english}\n  - Social Studies: ${marks.social}\n`;
   }
 
-  const aptitudeScore = scores.unified !== undefined
-    ? `Unified Aptitude Test Score: ${scores.unified}%`
-    : `Aptitude Scores: Computer Science ${scores.computerScience}%, Commerce ${scores.commerce}%, Biology ${scores.biology}%, Mathematics ${scores.maths}%, Arts ${scores.arts}%`;
+  const aptitudeScore =
+    scores.unified !== undefined
+      ? `Unified Aptitude Test Score: ${scores.unified}%`
+      : `Aptitude Scores: Computer Science ${scores.computerScience}%, Commerce ${scores.commerce}%, Biology ${scores.biology}%, Mathematics ${scores.maths}%, Arts ${scores.arts}%`;
 
-  const prompt = `You are an academic counsellor. Analyse the following student profile and recommend the most suitable stream for further studies after 10th standard.
+  const prompt = `You are an academic counsellor. Analyze the following student profile objectively and recommend the MOST suitable stream for further studies after 10th standard based on their strengths and interests.
 
 Student Name: ${name}
-Subjects Studied: ${subjects && subjects.length ? subjects.map((s) => SUBJECT_DISPLAY_NAMES[s] || s).join(', ') : 'Not specified'}
+Subjects Studied: ${subjects && subjects.length ? subjects.map((s) => SUBJECT_DISPLAY_NAMES[s] || s).join(", ") : "Not specified"}
 ${academicMarksSection}
-Stated Interests: ${preferences && preferences.length ? preferences.join(', ') : 'None provided'}
+Stated Interests: ${preferences && preferences.length ? preferences.join(", ") : "None provided"}
 ${aptitudeScore}
+
+IMPORTANT: Consider all factors equally. Do NOT default to Computer Science unless it is genuinely the best fit. Analyze the student's actual performance and interests.
+
+Available streams and their focus areas:
+- Computer Science: For students strong in logic, mathematics, programming, technology
+- Commerce: For students interested in business, finance, economics, accounting
+- Biology: For students strong in life sciences, medicine, healthcare
+- Mathematics: For students exceptional in pure mathematics, analytical thinking
+- Arts: For students interested in humanities, social sciences, creative fields
 
 Return ONLY a valid JSON object (no markdown, no extra text) with:
 - "recommendedStream": one of "Computer Science", "Commerce", "Biology", "Mathematics", "Arts"
 - "confidenceLevel": a number between 0 and 100 indicating confidence
-- "explanation": 2-3 sentences explaining the recommendation
+- "explanation": 2-3 sentences explaining why this stream matches their profile
 - "streamRanking": an array of all 5 stream names sorted from most to least suitable`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.8,
+      max_tokens: 1024,
+    });
+    const text = chatCompletion.choices[0]?.message?.content || "";
     const analysis = extractJSON(text);
     return analysis;
   } catch (error) {
@@ -136,22 +160,27 @@ Return ONLY a valid JSON object (no markdown, no extra text) with:
 /**
  * Generate a unified aptitude test covering all subjects the student studied.
  * @param {string[]} subjects - Array of subject keys (camelCase) or display names.
- * @returns {Promise<Array>} Array of 15 question objects.
+ * @returns {Promise<Array>} Array of question objects (15 per subject).
  */
 const generateUnifiedQuestions = async (subjects) => {
   // Convert camelCase keys to display names; fall back to the original string if not found
   const displayNames = subjects.map((s) => SUBJECT_DISPLAY_NAMES[s] || s);
-  const subjectList = displayNames.join(', ');
-  const prompt = `Generate exactly 15 multiple-choice aptitude questions for a 10th standard student who studied: ${subjectList}.
+  
+  // Generate 15 questions for EACH subject
+  const allQuestions = [];
+  let questionId = 1;
+  
+  for (const subjectName of displayNames) {
+    const prompt = `Generate exactly 15 multiple-choice aptitude questions for a 10th standard student on the subject: ${subjectName}.
 
-Mix questions across all these subjects proportionally. Each question should suit a 10th standard student.
+Each question should be appropriate for a 10th standard student and test their understanding of ${subjectName}.
 
 Return ONLY a valid JSON array (no markdown, no extra text) where each element has:
-- "id": question number (1-15)
+- "id": question number (starting from 1)
 - "question": the question text
 - "options": an array of exactly 4 answer strings
 - "correctAnswer": the index (0-3) of the correct option
-- "subject": the subject name this question is from
+- "subject": "${subjectName}"
 
 Example format:
 [
@@ -160,18 +189,38 @@ Example format:
     "question": "Sample question?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correctAnswer": 2,
-    "subject": "Mathematics"
+    "subject": "${subjectName}"
   }
 ]`;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const questions = extractJSON(text);
-    return questions;
-  } catch (error) {
-    throw new Error(`Failed to generate unified questions: ${error.message}`);
+    try {
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.7,
+        max_tokens: 4096,
+      });
+      const text = chatCompletion.choices[0]?.message?.content || '';
+      const questions = extractJSON(text);
+      
+      // Renumber questions and add to the all questions array
+      questions.forEach((q) => {
+        allQuestions.push({
+          ...q,
+          id: questionId++,
+        });
+      });
+    } catch (error) {
+      console.error(`Failed to generate questions for ${subjectName}:`, error.message);
+      throw new Error(`Failed to generate questions for ${subjectName}: ${error.message}`);
+    }
   }
+  
+  return allQuestions;
 };
 
-module.exports = { generateQuestions, generateUnifiedQuestions, analyzeFinalResult };
+module.exports = {
+  generateQuestions,
+  generateUnifiedQuestions,
+  analyzeFinalResult,
+};
